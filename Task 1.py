@@ -8,15 +8,20 @@ import time
 import matplotlib.pyplot as plt
 
 
+def manhattan(x1, x2):
+    return np.sqrt(np.sum(np.abs(x1 - x2)))
+
 def euclidiean(x1, x2):
     return np.sqrt(np.sum((x1-x2))**2)
 
-def mahalanobis(x1, x2): # tried to implement it but was having problems with for now
-    diff = (x1 - x2).reshape(1, -1)
-    cov=np.cov(X_train)
-    inv_cov = np.linalg.inv(cov)
-    return np.sqrt(np.dot(np.dot(diff, inv_cov), diff.T))
 
+def hamming(x1, x2):
+    return np.count_nonzero(x1 != x2)
+
+def mahalanobis(x1, x2,X_train): # tried to implement it but was having problems with for now
+    inv_cov = np.linalg.inv(np.cov(X_train.T))
+    diff = (x1 - x2).reshape(1, -1)
+    return np.sqrt(np.dot(np.dot(diff, inv_cov), diff.T))
 
 def cosine_similarity(vec1, vec2): # tried to implement it but was having problems as accuracuy is very low
     dot_product = np.dot(vec1, vec2)
@@ -24,10 +29,15 @@ def cosine_similarity(vec1, vec2): # tried to implement it but was having proble
     return dot_product / norm_product
 
 
+
+
+
 class KNN:
 
-    def __init__(self, k): # k is the number of nearest neighbors to consider
+    def __init__(self, k,distance_metric): # k is the number of nearest neighbors to consider
         self.k=k
+        self.distance_metric=distance_metric
+
     def fit(self,X,Y): # used to training data to the class
         self.X_train = X
         self.Y_train = Y
@@ -37,12 +47,32 @@ class KNN:
         #one by one , by taking each example one at a time, this is called list comprehension
         return predicted_labels
     def _predict(self,x): # here x is one sample from X test
-        distances = [euclidiean(x,x_train) for x_train in self.X_train] # compare our current point to each point in training data
+        distances = [self._distance_Metric(x,x_train) for x_train in self.X_train] # compare our current point to each point in training data
         k_indices = np.argsort(distances)[:self.k] # this will sort the distance indices and give the 3 nearst distances
         k_labels  = [self.Y_train[i] for i in k_indices]
         most_common = Counter(k_labels).most_common(1)
         return most_common[0][0]
 
+    def _distance_Metric(self,x1,x2):
+        if self.distance_metric=="euclidiean":
+            return euclidiean(x1,x2)
+        elif self.distance_metric=="manhattan":
+            return manhattan(x1,x2)
+        elif self.distance_metric=="hamming":
+            return hamming(x1,x2)
+        elif self.distance_metric=="cosine":
+            return cosine_similarity(x1,x2)
+        elif self.distance_metric=="mahalanobis":
+            return mahalanobis(x1,x2)
+        else:
+            raise ValueError("distance metric not found")
+
+    def _mahalanobis(self,x1, x2): # tried to implement it but was having problems with for now
+        diff = (x1 - x2).reshape(1, -1)
+        inv_cov = np.linalg.inv(np.cov(self.X_train.T))
+        cov=np.cov(X_train)
+        inv_cov = np.linalg.inv(cov)
+        return np.sqrt(np.dot(np.dot(diff, inv_cov), diff.T))
 
 def preprocess_data(file_path):
     data=pd.read_csv(file_path,header=None)
@@ -104,7 +134,7 @@ for split in range(num_splits):
     shuffled_y_test=np.array(shuffled_y_test)
 
 
-    k1=KNN(k=1)
+    k1=KNN(k=1,distance_metric="euclidiean")
     k1.fit(shuffled_X_train,shuffled_y_train)
     predictions=k1.predict(shuffled_X_test)
     accuracy=np.sum(predictions==shuffled_y_test)/len(shuffled_y_test)
@@ -123,7 +153,7 @@ for split in range(num_splits):
     reduced_X_test = pca.transform(shuffled_X_test)
 
 
-    k1=KNN(k=1)
+    k1=KNN(k=1,distance_metric="euclidiean")
     k1.fit(reduced_X_train,shuffled_y_train)
     predictions=k1.predict(reduced_X_test)
     accuracy=np.sum(predictions==shuffled_y_test)/len(shuffled_y_test)
